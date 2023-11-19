@@ -24,6 +24,7 @@ const messagesQueue = new Queue(QUEUE_NAME, {
 const messageWorker = new Worker(
 	QUEUE_NAME,
 	async (job) => {
+		console.log("returning reply from assistant")
 		const { message, chatId, threadId } = job.data;
 		const result = await callAssistant(message, chatId, threadId);
 		if (result) {
@@ -31,6 +32,7 @@ const messageWorker = new Worker(
 			if (error) {
 				console.log(error);
 			} else if (assistantMessage) {
+				redis.set(message, assistantMessage)
 				io.emit('assistantReply', assistantMessage);
 			}
 		} else {

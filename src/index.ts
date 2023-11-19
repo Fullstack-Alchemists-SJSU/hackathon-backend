@@ -9,6 +9,7 @@ import { callAssistant } from './controller/chat_controller';
 import openAi from './openai/openai';
 import messagesQueue, { QUEUE_NAME, TaskType } from './queue/message_quque';
 import redis from './queue/redis';
+import Message from './db/models/message';
 require('dotenv').config();
 
 const app = express();
@@ -30,7 +31,6 @@ export const io = new Server(server, {
 	},
 });
 
-
 io.on('connection', (socket) => {
 	console.log('a user connected');
 
@@ -39,11 +39,16 @@ io.on('connection', (socket) => {
 	});
 
 	socket.on('newMessage', async (data: { message: string; chatId: number; threadId: string }) => {
-
 		redis.get(data.message, async (err, reply) => {
 			if (reply) {
-				console.log("returning reply from redis")
-				io.emit('assistantReply', reply);
+				console.log('returning reply from redis');
+				const assistantMessageRecord = await Message.create({
+					chat: data.chatId,
+					content: reply,
+					role: 'assistant',
+					timestamp: Date.now().toString(),
+				});
+				io.emit('assistantReply', assistantMessageRecord);
 			} else {
 				const task: TaskType<{ message: string; chatId: number; threadId: string }, any> = {
 					message: data.message,
